@@ -11,7 +11,7 @@ router = APIRouter(
     tags=['Posts']
 )
 
-@router.get("/", response_model=list[schemas.PostOut])
+@router.get("/", response_model=list[schemas.PostWithVotes])
 def get_posts(db : Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user), Limit: int = 10, skip: int = 0,
               search: Optional[str] = ""):
     
@@ -27,7 +27,7 @@ def get_posts(db : Session = Depends(get_db), current_user: int = Depends(oauth2
 
     return posts
 
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.Post)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.PostPublic)
 def create_posts(post: schemas.PostCreate, db : Session = Depends(get_db), 
                  current_user: int = Depends(oauth2.get_current_user)):
 
@@ -40,7 +40,7 @@ def create_posts(post: schemas.PostCreate, db : Session = Depends(get_db),
     return new_post
 
 
-@router.get("/{id}", response_model=schemas.PostOut)
+@router.get("/{id}", response_model=schemas.PostWithVotes)
 def get_post(id: int, db : Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
 
     #post = db.query(models.Post).filter(models.Post.id == id).first()
@@ -75,7 +75,7 @@ def delete_post(id : int, db : Session = Depends(get_db), current_user: int = De
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@router.put("/{id}", response_model=schemas.Post)
+@router.put("/{id}", response_model=schemas.PostPublic)
 def update_post(id: int, updated_post: schemas.PostCreate, db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
     
     post_query = db.query(models.Post).filter(models.Post.id == id)

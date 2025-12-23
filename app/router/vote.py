@@ -1,31 +1,31 @@
-from fastapi import FastAPI, Response, status, HTTPException, Depends, APIRouter
-from .. import schemas, database, models, oauth2
+from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-router = APIRouter(
-    prefix="/vote",
-    tags=["/Vote"]
-)
+from .. import database, schemas, models, utils, oauth2
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
-def vote(vote: schemas.Vote, db: Session = Depends(database.get_db), cuurent_user: int = Depends
-         (oauth2.get_current_user)):
-    
-     vote_query = db.query(models.Vote).filter(models.Vote.post_id == vote.post_id, models.Vote.user_id ==
-                 cuurent_user.id)
-     found_vote = vote_query.first()
+router = APIRouter(tags=["Authentication"])
 
-     if (vote.dir == 1):
-        if found_vote:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"user {cuurent_user.id} has already voted on post {vote.post_id}")
-        new_vote = models.Vote(post_id = vote.post_id, user_id = cuurent_user.id)
-        db.add(new_vote)
-        db.commit()
-        return  {"message" : "Successfully added vote"}         
-     else:
-         if not found_vote:
-             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vote does not exist")
-         vote_query.delete(synchronize_session=False)
-         db.commit()
+@router.post("/login", response_model=schemas.Token)
+def login(
+    user_credentials: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(database.get_db)
+):
+    user = db.query(models.User).filter(
+        models.User.email == user_credentials.username
+    ).first()
 
-         return {"message" : "Sucessfully deleted vote"}
+    if not user or not utils.verify(user_credentials.password, user.password):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid credentials"
+        )
+
+    access_token = oauth2.create_access_token(
+        data={"user_id": user.id}
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
